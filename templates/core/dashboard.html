@@ -1,0 +1,114 @@
+{% extends 'core/base.html' %}
+{% block title %}Dashboard | Upendo Finance{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 mb-0">Financial Dashboard</h1>
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#addTransaction">+ Add transaction</button>
+    <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#addCategory">+ Add category</button>
+  </div>
+</div>
+
+<div class="collapse mb-3" id="addTransaction">
+  <div class="card card-body">
+    <form method="post" action="{% url 'add_transaction' %}" class="row g-2">
+      {% csrf_token %}
+      {% for field in transaction_form %}
+      <div class="col-md-4">
+        <label class="form-label">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<small class="text-danger">{{ field.errors|join:', ' }}</small>{% endif %}
+      </div>
+      {% endfor %}
+      <div class="col-12"><button class="btn btn-success">Save transaction</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="collapse mb-3" id="addCategory">
+  <div class="card card-body">
+    <form method="post" action="{% url 'add_category' %}" class="row g-2">
+      {% csrf_token %}
+      {% for field in category_form %}
+      <div class="col-md-3">
+        <label class="form-label">{{ field.label }}</label>
+        {{ field }}
+      </div>
+      {% endfor %}
+      <div class="col-12"><button class="btn btn-dark">Create category</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="metric-card"><small>Balance</small><h3>${{ balance }}</h3></div></div>
+  <div class="col-6 col-lg-3"><div class="metric-card"><small>Income (period)</small><h3 class="text-success">${{ income }}</h3></div></div>
+  <div class="col-6 col-lg-3"><div class="metric-card"><small>Expense (period)</small><h3 class="text-danger">${{ expense }}</h3></div></div>
+  <div class="col-6 col-lg-3"><div class="metric-card"><small>Savings Rate</small><h3>{{ savings_rate }}%</h3></div></div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Trends & analytics</span>
+    <form method="get">
+      <select name="period" class="form-select form-select-sm" onchange="this.form.submit()">
+        {% for item in period_options %}
+        <option value="{{ item }}" {% if period == item %}selected{% endif %}>{{ item|title }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+  <div class="card-body"><canvas id="trendChart" height="120"></canvas></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">Recent transactions (auto time-stamped)</div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Recorded</th><th></th></tr></thead>
+          <tbody>
+          {% for tx in transactions %}
+            <tr>
+              <td>{{ tx.transaction_date }}</td>
+              <td>{{ tx.get_transaction_type_display }}</td>
+              <td><span class="badge" style="background:{{ tx.category.color }}">{{ tx.category.name }}</span></td>
+              <td class="{% if tx.transaction_type == 'income' %}text-success{% else %}text-danger{% endif %}">${{ tx.amount }}</td>
+              <td class="small text-muted">{{ tx.created_at }}</td>
+              <td>
+                <form method="post" action="{% url 'delete_transaction' tx.id %}">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-outline-danger">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="text-center py-4">No transactions yet. Add your first income or expense.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">Category analysis</div>
+      <ul class="list-group list-group-flush">
+        {% for row in category_breakdown %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>{{ row.category__name }} <small class="text-muted">({{ row.transaction_type }})</small></span>
+          <strong>${{ row.total }}</strong>
+        </li>
+        {% empty %}
+        <li class="list-group-item">No category analytics available yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+{{ trend_labels|json_script:'trend-labels' }}
+{{ trend_income|json_script:'trend-income' }}
+{{ trend_expense|json_script:'trend-expense' }}
+{% endblock %}
